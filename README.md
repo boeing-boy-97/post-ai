@@ -250,7 +250,8 @@ npm run build
 ```bash
 cd ../backend
 npm install
-npx prisma db push
+cp .env.example .env            # set DATABASE_URL, JWT_SECRET, etc.
+DATABASE_URL="file:./dev.db" npx prisma db push
 npm run build
 ```
 
@@ -259,6 +260,8 @@ npm run build
 npm start
 ```
 The server will start listening at `http://0.0.0.0:8000` with the background queue publisher active.
+
+> **Deploying to Vercel / Render?** See [VERCEL_DEPLOYMENT_GUIDE.md](VERCEL_DEPLOYMENT_GUIDE.md) — it explains and fixes the two common errors: "No Output Directory named 'dist' found" and the npm `allow-scripts` warning for `esbuild`.
 
 ---
 
@@ -297,5 +300,3 @@ The server will start listening at `http://0.0.0.0:8000` with the background que
 
 ## 📄 License
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
-#   p o s t - a i  
- 
