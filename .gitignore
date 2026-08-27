@@ -18,6 +18,7 @@ backend/dev.db
 backend/dist/
 backend/public/
 frontend/dist/
+dist/
 build/
 .output/
 

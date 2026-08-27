@@ -56,9 +56,9 @@ The root `vercel.json` is pre-configured for you. Update the backend destination
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "buildCommand": "cd frontend && npm run build",
   "installCommand": "cd frontend && npm install",
-  "outputDirectory": "frontend/dist",
+  "buildCommand": "cd frontend && npm run build && cd .. && cp -r frontend/dist ./dist",
+  "outputDirectory": "dist",
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
@@ -73,14 +73,9 @@ The root `vercel.json` is pre-configured for you. Update the backend destination
   ]
 }
 ```
-> **Note:** Do NOT add `"framework": "vite"` unless you also set the Vercel project **Root Directory** to `frontend/`. The framework preset can otherwise override `buildCommand`/`outputDirectory` and reintroduce the "No Output Directory named dist" error. The explicit commands above are fully self-contained and immune to that.
 
 ### Step 5: Deploy Frontend on Vercel
 1. Go to [Vercel Dashboard](https://vercel.com) and click **Add New ➔ Project**.
 2. Import your GitHub repository (`post-ai`).
-3. Configure Project Settings:
-   - **Framework Preset**: `Vite`
-   - **Root Directory**: `frontend`
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
+3. Vercel will automatically detect `vercel.json` at the root, running the custom build command and outputting to `dist`.
 4. Click **Deploy**. Vercel will build and deploy your production-ready frontend instantly!
