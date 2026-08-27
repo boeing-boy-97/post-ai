@@ -10,6 +10,7 @@ RUN cd frontend && npm install
 COPY frontend/ ./frontend/
 COPY backend/package*.json ./backend/
 RUN cd frontend && npm run build
+RUN cp -r frontend/dist backend/public
 
 # 2. Install & Build Backend
 COPY backend/ ./backend/
