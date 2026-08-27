@@ -14,10 +14,10 @@ frontend/.env
 *.db-journal
 backend/dev.db
 
-# Build outputs
-dist/
+# Build outputs (backend/frontend-scoped to avoid swallowing Vercel's expected frontend/dist)
 backend/dist/
 backend/public/
+frontend/dist/
 build/
 .output/
 
