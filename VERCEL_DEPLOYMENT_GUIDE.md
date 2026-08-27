@@ -1,81 +1,163 @@
 # 🚀 PostWave AI — Vercel & Production Deployment Guide
 
-This guide outlines the deep checks performed on the codebase and the exact steps to deploy **PostWave AI** with the frontend hosted on **Vercel** and the backend + database hosted on a persistent Node.js server (such as **Render**, **Railway**, or **Fly.io**) with **PostgreSQL** (Supabase or Neon).
+This guide explains the **root cause** of the two errors you saw on Vercel and the
+**exact fix** already applied to this repository:
+
+> ```
+> Error: No Output Directory named "dist" found after the Build completed.
+> Configure the Output Directory in your Project Settings. Alternatively, configure vercel.json#outputDirectory.
+> ```
+>
+> ```
+> npm warn allow-scripts   esbuild@0.21.5 (postinstall: node install.js)
+> ```
 
 ---
 
-## 🔍 Deep Code Checks & Validation Results
+## 🔍 Root cause #1 — "No Output Directory named 'dist' found"
 
-1. **TypeScript Compilation (`backend`)**:
-   - `npm run build` compiles successfully with **0 errors**. All strict type definitions, DTO sanitizers, Prisma models, and platform adapters are fully typed.
-2. **Frontend Build (`frontend`)**:
-   - `npm run build` (Vite) builds successfully with **0 errors**. All React components, Tailwind styling, and API hooks are production-ready.
-3. **Database & ORM**:
-   - Prisma schema is fully configured for SQLite (local dev) and PostgreSQL (production / Supabase / Neon).
-4. **Security Vault**:
-   - AES-256-GCM token encryption and bcrypt password hashing are fully implemented.
+The old root `vercel.json` used a **fragile build command**:
 
----
-
-## ☁️ Architecture Strategy for Vercel
-
-Because **Vercel Serverless Functions** do not support long-running background cron/interval workers (`setInterval` queue pollers) or persistent local SQLite files (`dev.db`), the recommended production architecture is:
-- **Frontend SPA**: Hosted on **Vercel** (with automatic preview deployments and CDN caching).
-- **Backend API & Background Worker**: Hosted on **Render** or **Railway** (using Docker or Node.js runtime with persistent database connection and background queue active).
-- **Database**: Hosted on **Supabase** or **Neon** (PostgreSQL).
-
----
-
-## 🛠️ Step-by-Step Deployment Instructions
-
-### Step 1: Push Repository to GitHub
-Ensure your repository is pushed to GitHub:
-```bash
-git push origin arena/01a0441d-post-ai
-```
-
-### Step 2: Set Up Your PostgreSQL Database (Supabase / Neon)
-1. Create a free PostgreSQL database on [Supabase](https://supabase.com) or [Neon](https://neon.tech).
-2. Copy your connection URI (`postgresql://...`).
-
-### Step 3: Deploy the Backend (Render / Railway)
-1. Create a new Web Service on [Render](https://render.com) or [Railway](https://railway.app) connected to your GitHub repository.
-2. Set the Root Directory to `backend` (or use the root `Dockerfile`).
-3. Add the required Environment Variables:
-   - `NODE_ENV=production`
-   - `DATABASE_URL=postgresql://your_postgres_uri`
-   - `JWT_SECRET=your_secure_random_string`
-   - `ENCRYPTION_KEY=your_32_character_encryption_key`
-   - `OPENAI_API_KEY=sk-proj-...` (optional for AI)
-   - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (optional for media)
-4. Deploy the backend and copy your backend URL (e.g., `https://postwave-ai-backend.onrender.com`).
-
-### Step 4: Configure Vercel Rewrites for the Backend API
-The root `vercel.json` is pre-configured for you. Update the backend destination URL to match your deployed backend URL:
 ```json
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "version": 2,
-  "installCommand": "cd frontend && npm install",
-  "buildCommand": "cd frontend && npm run build && cd .. && cp -r frontend/dist ./dist",
-  "outputDirectory": "dist",
-  "cleanUrls": true,
-  "trailingSlash": false,
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "https://YOUR-BACKEND-URL.onrender.com/api/$1"
-    },
-    {
-      "source": "/((?!assets/).*)",
-      "destination": "/index.html"
-    }
-  ]
-}
+"buildCommand": "cd frontend && npm run build && cd .. && cp -r frontend/dist ./dist",
+"outputDirectory": "dist"
 ```
 
-### Step 5: Deploy Frontend on Vercel
-1. Go to [Vercel Dashboard](https://vercel.com) and click **Add New ➔ Project**.
-2. Import your GitHub repository (`post-ai`).
-3. Vercel will automatically detect `vercel.json` at the root, running the custom build command and outputting to `dist`.
-4. Click **Deploy**. Vercel will build and deploy your production-ready frontend instantly!
+It copied `frontend/dist` to a root `./dist` and told Vercel to look for `dist`.
+That works locally, but on Vercel the project **Root Directory** is often
+auto-detected as `frontend`, so Vercel was looking for `dist` **inside a
+different directory than the one the build actually produced** — resulting in
+`STATIC_BUILD_NO_OUT_DIR`.
+
+**The fix (already applied):** point Vercel **directly at the real build output**
+and remove the manual `cp` step entirely. Both `vercel.json` files below simply
+run `npm run build` and set `outputDirectory` to the folder Vite actually emits.
+
+---
+
+## 🔍 Root cause #2 — "npm warn allow-scripts esbuild@0.21.5"
+
+npm v11.16+ and npm v12 **block dependency install scripts** (`preinstall` /
+`install` / `postinstall`) unless they are explicitly approved. `esbuild` ships a
+`postinstall` script (`node install.js`) that downloads the platform-native
+binary. When npm skipped it, the binary was missing and `vite build` could fail.
+
+**The fix (already applied):** each app's `package.json` now declares an
+`allowScripts` allowlist:
+
+- `frontend/package.json` → `esbuild`, `fsevents`
+- `backend/package.json` → `@prisma/client`, `@prisma/engines`, `prisma`, `fsevents`
+
+The root `.npmrc` previously contained `enable-pre-post-scripts=true`, which is
+**not a real npm setting** (it is a pnpm/yarn token) and did nothing. It has been
+replaced with an explanatory comment. We intentionally do **not** set
+`ignore-scripts=true`, because that would silently bypass the `allowScripts`
+allowlist and re-introduce the bug.
+
+---
+
+## ✅ What has been fixed in this repository
+
+| File | Change |
+| :--- | :--- |
+| `vercel.json` | Build → `cd frontend && npm run build`; `outputDirectory` → `frontend/dist`; SPA rewrite + `/api` proxy |
+| `frontend/vercel.json` | New — same config for the **Root Directory = `frontend`** monorepo layout |
+| `frontend/package.json` | Added `allowScripts` for `esbuild` + `fsevents` |
+| `backend/package.json` | Added `allowScripts` for Prisma packages + `fsevents` |
+| `.npmrc` | Removed invalid `enable-pre-post-scripts` directive |
+| `backend/prisma/schema.prisma` | Datasource now reads `DATABASE_URL` (was hard-coded to `file:./dev.db`) |
+
+---
+
+## ☁️ Recommended production architecture
+
+Vercel Serverless Functions are not ideal for the long-running background queue
+worker (`setInterval` poller) or a persistent local SQLite file. So:
+
+- **Frontend (SPA)** — host on **Vercel** (CDN + preview deploys).
+- **Backend API + Background worker** — host on **Render / Railway / Fly.io**.
+- **Database** — **Supabase** or **Neon** (managed PostgreSQL).
+
+---
+
+## 🛠️ Deployment instructions
+
+### Option A — Vercel Root Directory = repository root (simplest, uses `/vercel.json`)
+
+1. Push the repo to GitHub.
+2. In Vercel: **Add New → Project → Import** the repo.
+3. Keep **Root Directory = the repository root** (Vercel reads the root
+   `vercel.json` automatically).
+4. **Do not** override Build/Output settings in the dashboard — the `vercel.json`
+   already defines them. If you previously set a custom **Output Directory** in
+   the dashboard, clear it (it overrides `vercel.json`).
+5. Set the backend URL in `vercel.json` → `rewrites[0].destination` to your
+   real backend (e.g. `https://postwave-ai-backend.onrender.com/api/$1`).
+6. Click **Deploy**. It builds the frontend and serves the SPA.
+
+### Option B — Vercel Root Directory = `frontend` (idiomatic monorepo)
+
+1. In Vercel → **Project Settings → General**, set **Root Directory = `frontend`**.
+2. Vercel reads `frontend/vercel.json` and auto-detects Vite.
+3. Set the backend URL in `frontend/vercel.json` → `rewrites[0].destination`.
+4. Deploy.
+
+---
+
+## 🗄️ Backend + database (Render / Railway)
+
+1. Create a managed PostgreSQL database on **Supabase** or **Neon**.
+2. Create a Web Service on **Render** / **Railway**, Root Directory = `backend`
+   (or use the repo `Dockerfile`).
+3. Set env vars:
+
+   - `NODE_ENV=production`
+   - `DATABASE_URL=postgresql://user:password@host:5432/db?schema=public`
+   - `JWT_SECRET=<long random string>`
+   - `ENCRYPTION_KEY=<32-char string>`
+   - `OPENAI_API_KEY`, `CLOUDINARY_*` (optional)
+
+4. Run schema push and start:
+   ```bash
+   cd backend
+   npx prisma db push
+   npm run build && npm start
+   ```
+
+> **Note:** `backend/prisma/schema.prisma` currently uses `provider = "sqlite"`.
+> For PostgreSQL, change that line to `provider = "postgresql"` (the datasource
+> already reads `DATABASE_URL` from the environment). See
+> `docs/REAL_WORLD_SETUP_GUIDE.md`.
+
+---
+
+## 🔬 How to verify the build locally
+
+```bash
+# Frontend
+cd frontend
+npm install
+npm run build        # -> creates frontend/dist
+
+# Backend
+cd backend
+npm install
+DATABASE_URL="file:./dev.db" npx prisma generate
+DATABASE_URL="file:./dev.db" npx prisma db push
+npm run build        # -> tsc compiles src to dist
+```
+
+The frontend build output is `frontend/dist`, which is exactly what
+`outputDirectory` points at in both `vercel.json` files — so Vercel will always
+find it after the build.
+
+---
+
+## ⚠️ Known, low-risk dependency advisory
+
+`npm audit` reports an `esbuild` advisory (GHSA-67mh-4wv8-2f99). It only affects
+the **local Vite development server** (it lets any website issue requests to a
+running dev server); it is **not relevant to the static production build** served
+by Vercel. Clearing it requires upgrading to Vite 7/8 (`npm audit fix --force`),
+which is a breaking upgrade. It is intentionally left at the safe Vite 5.4 patch
+line. The frontend package.json pins `"vite": "^5.4.21"`.

@@ -1,88 +1,90 @@
-# AI Social Media Scheduler — Project Structure (Firebase Edition)
+# PostWave AI — Project Structure
 
 ```
-AI-Social-Media-Scheduler/
-├── backend/                    # Node.js/Express API (Firebase Firestore)
+post-ai/
+├── backend/                     # Node.js + Express + Prisma API
+│   ├── prisma/
+│   │   ├── schema.prisma        # SQLite (dev) / PostgreSQL (prod) models
+│   │   └── seed.ts              # Demo user + connected Instagram account
 │   ├── src/
 │   │   ├── config/
-│   │   │   └── index.ts       # All configuration & Firebase credentials
-│   │   ├── firebase/
-│   │   │   └── db.ts          # Firebase Firestore Client & Persistent Engine
+│   │   │   ├── index.ts         # Env-based config (JWT, AI, OAuth, Cloudinary)
+│   │   │   └── database.ts      # Prisma client singleton
+│   │   ├── dto/index.ts         # Type-safe, token-free response DTOs
 │   │   ├── middleware/
-│   │   │   ├── auth.ts        # JWT authentication
-│   │   │   ├── errorHandler.ts
-│   │   │   └── rateLimiter.ts
+│   │   │   ├── auth.ts          # JWT bearer auth
+│   │   │   ├── errorHandler.ts  # Sanitized Zod + operational errors
+│   │   │   ├── rateLimiter.ts   # Per-IP + auth rate limits
+│   │   │   └── validateRequest.ts
 │   │   ├── routes/
-│   │   │   ├── auth/
-│   │   │   │   ├── instagram.ts
-│   │   │   │   └── linkedin.ts
-│   │   │   ├── posts/
-│   │   │   │   └── index.ts
+│   │   │   ├── auth/            # signup/signin/me + Instagram & LinkedIn OAuth
 │   │   │   ├── accounts/
-│   │   │   │   └── index.ts
+│   │   │   ├── posts/
+│   │   │   ├── templates/
 │   │   │   ├── analytics/
-│   │   │   │   └── index.ts
 │   │   │   ├── ai/
-│   │   │   │   └── index.ts
-│   │   │   └── upload/
-│   │   │       └── index.ts
+│   │   │   ├── upload/
+│   │   │   ├── brand/
+│   │   │   └── campaigns/
 │   │   ├── services/
-│   │   │   ├── instagram.service.ts
-│   │   │   ├── linkedin.service.ts
 │   │   │   ├── ai.service.ts
 │   │   │   ├── cloudinary.service.ts
-│   │   │   └── queue.service.ts
-│   │   ├── types/
-│   │   │   └── index.ts
-│   │   ├── app.ts             # Express app entry & static host
-│   │   └── index.ts           # Server listener
+│   │   │   ├── instagram.service.ts
+│   │   │   ├── linkedin.service.ts
+│   │   │   ├── queue.service.ts
+│   │   │   └── platformAdapters/   # Instagram, LinkedIn, X, YouTube, FB,
+│   │   │                            # Threads, Pinterest, TikTok, Telegram
+│   │   ├── types/index.ts
+│   │   ├── utils/               # AES-256-GCM encryption, logger, error mapping
+│   │   ├── workers/postPublisher.worker.ts
+│   │   ├── app.ts               # Express app, security middleware, SPA fallback
+│   │   └── index.ts             # Server listener (+ background queue)
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── .env.example
 │
-├── frontend/                   # React + TypeScript App (Advanced Light Theme)
+├── frontend/                    # React 18 + TypeScript + Tailwind (Vite)
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── ui/
-│   │   │   │   └── Toast.tsx
-│   │   │   ├── layout/
-│   │   │   │   ├── Sidebar.tsx
-│   │   │   │   └── Header.tsx
-│   │   │   ├── posts/
-│   │   │   │   ├── PostCard.tsx
-│   │   │   │   ├── PostList.tsx
-│   │   │   │   ├── PostComposer.tsx
-│   │   │   │   └── PostCalendar.tsx
-│   │   │   ├── accounts/
-│   │   │   │   └── AccountsView.tsx
-│   │   │   ├── analytics/
-│   │   │   │   └── AnalyticsDashboard.tsx
-│   │   │   └── ai/
-│   │   │       └── AIComposer.tsx
-│   │   ├── lib/
-│   │   │   └── api.ts
-│   │   ├── pages/
-│   │   │   └── DashboardPage.tsx
+│   │   │   ├── ui/              # Button, Input, Modal, Toast, Badge, Skeleton…
+│   │   │   ├── layout/          # Sidebar, Header, PageHeader
+│   │   │   ├── posts/           # PostComposer, PostCard, PostList, PostCalendar…
+│   │   │   ├── accounts/        # AccountsView
+│   │   │   ├── analytics/       # AnalyticsDashboard
+│   │   │   ├── ai/              # AIComposer
+│   │   │   ├── campaigns/       # CampaignStudioView
+│   │   │   ├── brand/           # BrandMemoryView
+│   │   │   └── templates/       # TemplatesView
+│   │   ├── lib/                 # api.ts, AuthContext.tsx
+│   │   ├── pages/               # AuthPage, DashboardPage
 │   │   ├── App.tsx
 │   │   ├── main.tsx
 │   │   └── index.css
+│   ├── index.html
 │   ├── package.json
 │   ├── tailwind.config.js
+│   ├── vite.config.js
 │   ├── tsconfig.json
-│   └── vite.config.js
+│   └── vercel.json              # Root Directory = frontend deployment config
 │
-├── .gitignore
-├── README.md
+├── docs/REAL_WORLD_SETUP_GUIDE.md
+├── vercel.json                  # Root Directory = repo root deployment config
+├── VERCEL_DEPLOYMENT_GUIDE.md
 ├── QUICKSTART.md
+├── README.md
+├── Dockerfile
+├── render.yaml
+├── .npmrc
+├── .env.example
 └── LICENSE
 ```
 
----
+## Key points
 
-## Key Updates in this Architecture:
-1. **Firebase Firestore Database**: Replaced Prisma/PostgreSQL with native Firebase Firestore collections (`users`, `accounts`, `posts`, `ai_content`, `settings`).
-2. **Zero Docker Requirement**: Lightweight standard Node.js/npm workflow with single unified server build.
-3. **Advanced Light Color Palette**:
-   - Clean, luminous `#F8FAFC` background with pure white cards.
-   - Soft, modern indigo (`#4F46E5`), violet (`#7C3AED`), and pastel status pills.
-   - Live platform feed simulators for Instagram and LinkedIn.
+1. **Database**: Prisma ORM with SQLite for local dev and PostgreSQL for
+   production. The datasource reads `DATABASE_URL` from the environment; switch
+   `provider` to `postgresql` for managed Postgres (Supabase / Neon / RDS).
+2. **Security**: AES-256-GCM encrypts OAuth tokens at rest; bcrypt (12 rounds)
+   hashes passwords; JWT sessions; Helmet + rate limiting.
+3. **Deployment**: Frontend → Vercel, backend + worker → Render/Railway,
+   database → managed PostgreSQL. See `VERCEL_DEPLOYMENT_GUIDE.md`.
