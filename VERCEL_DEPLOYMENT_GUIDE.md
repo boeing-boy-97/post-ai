@@ -51,26 +51,29 @@ git push origin arena/01a0441d-post-ai
 4. Deploy the backend and copy your backend URL (e.g., `https://postwave-ai-backend.onrender.com`).
 
 ### Step 4: Configure Vercel Rewrites for the Backend API
-In your root `vercel.json`, update the backend destination URL to match your deployed backend URL:
+The root `vercel.json` is pre-configured for you. Update the backend destination URL to match your deployed backend URL:
 ```json
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/dist",
+  "buildCommand": "cd frontend && npm run build",
   "installCommand": "cd frontend && npm install",
-  "framework": "vite",
+  "outputDirectory": "frontend/dist",
+  "cleanUrls": true,
+  "trailingSlash": false,
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "https://YOUR-BACKEND-URL.onrender.com/api/$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!assets/).*)",
       "destination": "/index.html"
     }
   ]
 }
 ```
+> **Note:** Do NOT add `"framework": "vite"` unless you also set the Vercel project **Root Directory** to `frontend/`. The framework preset can otherwise override `buildCommand`/`outputDirectory` and reintroduce the "No Output Directory named dist" error. The explicit commands above are fully self-contained and immune to that.
 
 ### Step 5: Deploy Frontend on Vercel
 1. Go to [Vercel Dashboard](https://vercel.com) and click **Add New ➔ Project**.
